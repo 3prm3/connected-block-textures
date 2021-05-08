@@ -1,23 +1,10 @@
 package io.github.nuclearfarts.cbt.config;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Properties;
-import java.util.Set;
-import java.util.function.BiPredicate;
-import java.util.function.IntPredicate;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
-import com.google.common.base.Predicates;
-
+import io.github.nuclearfarts.cbt.ConnectedBlockTextures;
+import io.github.nuclearfarts.cbt.sprite.SpriteProvider;
+import io.github.nuclearfarts.cbt.tile.provider.TileProvider;
+import io.github.nuclearfarts.cbt.util.CBTUtil;
+import io.github.nuclearfarts.cbt.util.CursedBiomeThing;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.ModelIdentifier;
@@ -30,11 +17,13 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.world.BlockRenderView;
 import net.minecraft.world.biome.Biome;
 
-import io.github.nuclearfarts.cbt.ConnectedBlockTextures;
-import io.github.nuclearfarts.cbt.sprite.SpriteProvider;
-import io.github.nuclearfarts.cbt.tile.provider.TileProvider;
-import io.github.nuclearfarts.cbt.util.CBTUtil;
-import io.github.nuclearfarts.cbt.util.CursedBiomeThing;
+import java.io.IOException;
+import java.util.*;
+import java.util.function.BiPredicate;
+import java.util.function.IntPredicate;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 //Java generics are awful.
 public abstract class BaseCTMConfig<Self extends BaseCTMConfig<Self>> implements CTMConfig {
@@ -59,12 +48,11 @@ public abstract class BaseCTMConfig<Self extends BaseCTMConfig<Self>> implements
 		if(properties.containsKey("matchBlocks")) {
 			blockMatcher = Arrays.stream(properties.getProperty("matchBlocks").split(" ")).map(Identifier::new).collect(Collectors.toCollection(HashSet::new))::contains;
 		} else {
-			blockMatcher = Predicates.alwaysTrue();
+			blockMatcher = identifier -> true;
 		}
 		
 		Predicate<Biome> biomeMatcher;
-		if(properties.containsKey("biomes")) {
-			//@SuppressWarnings("resource")
+		if(properties.containsKey("biomes") && MinecraftClient.getInstance().world != null) {
 			Registry<Biome> biomes = MinecraftClient.getInstance().world.getRegistryManager().get(Registry.BIOME_KEY);
 			biomeMatcher = Arrays.stream(properties.getProperty("biomes").split(" ")).map(Identifier::new).map(biomes::get).collect(Collectors.toCollection(HashSet::new))::contains;
 		} else {
@@ -102,8 +90,8 @@ public abstract class BaseCTMConfig<Self extends BaseCTMConfig<Self>> implements
 				case "sides":
 					faces.add(Direction.NORTH);
 					faces.add(Direction.EAST);
-					faces.add(Direction.WEST);
 					faces.add(Direction.SOUTH);
+					faces.add(Direction.WEST);
 					break;
 				case "top":
 					faces.add(Direction.UP);
@@ -112,9 +100,7 @@ public abstract class BaseCTMConfig<Self extends BaseCTMConfig<Self>> implements
 					faces.add(Direction.DOWN);
 					break;
 				case "all":
-					for(Direction d : Direction.values()) {
-						faces.add(d);
-					}
+					Collections.addAll(faces, Direction.values());
 					break;
 				default:
 					faces.add(Direction.valueOf(face.toUpperCase(Locale.ENGLISH))); //avoid the turkish bug
@@ -123,7 +109,7 @@ public abstract class BaseCTMConfig<Self extends BaseCTMConfig<Self>> implements
 			}
 			faceMatcher = faces::contains;
 		} else {
-			faceMatcher = Predicates.alwaysTrue();
+			faceMatcher = direction -> true;
 		}
 		
 		weight = Integer.parseInt(properties.getProperty("weight", "0"));
